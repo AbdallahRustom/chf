@@ -144,13 +144,40 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 	var err error
 	cfg := s.Config()
 	scheme := cfg.GetSbiScheme()
-	if scheme == "http" {
+	mutalTls := cfg.GetSbiMutalTls()
+
+	switch scheme {
+	case "http":
 		err = s.httpServer.ListenAndServe()
-	} else if scheme == "https" {
-		err = s.httpServer.ListenAndServeTLS(
-			cfg.GetCertPemPath(),
-			cfg.GetCertKeyPath())
-	} else {
+
+	case "https":
+		if mutalTls {
+			logger.SBILog.Infof("Sbi Server mTLS enabled, starting server with mTLS")
+			logger.SBILog.Debugf("Sbi Server mTLS cert Path %v:", cfg.GetCertPemPath())
+			logger.SBILog.Debugf("Sbi Server mTLS key Path %v:", cfg.GetCertKeyPath())
+			logger.SBILog.Debugf("Sbi Server mTLS client CA Path %v:", cfg.GetSbiCaCertPath())
+			err = s.ListenAndServeMutalTLS(
+				cfg.GetCertPemPath(),
+				cfg.GetCertKeyPath(),
+				cfg.GetSbiCaCertPath(), //client certificate
+			)
+			if err != nil {
+				logger.SBILog.Errorf("SBI server start with mTLS failed: %v", err)
+			}
+		} else {
+			logger.SBILog.Infof("Sbi Server TLS, starting server with TLS")
+			logger.SBILog.Debugf("Sbi Server TLS cert Path %v:", cfg.GetCertPemPath())
+			logger.SBILog.Debugf("Sbi Server TLS key Path %v:", cfg.GetCertKeyPath())
+			// Plain TLS (server-auth only)
+			err = s.httpServer.ListenAndServeTLS(
+				cfg.GetCertPemPath(),
+				cfg.GetCertKeyPath(),
+			)
+			if err != nil {
+				logger.SBILog.Errorf("SBI server start with TLS failed: %v", err)
+			}
+		}
+	default:
 		err = fmt.Errorf("No support this scheme[%s]", scheme)
 	}
 

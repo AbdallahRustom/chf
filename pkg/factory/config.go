@@ -61,6 +61,10 @@ type Configuration struct {
 	ServiceNameList     []string          `yaml:"serviceNameList,omitempty" valid:"required"`
 	NrfUri              string            `yaml:"nrfUri,omitempty" valid:"required, url"`
 	NrfCertPem          string            `yaml:"nrfCertPem,omitempty" valid:"optional"`
+	NrfMutaltls         bool              `yaml:"nrfMtlsEnabled,omitempty" valid:"type(bool)"`
+	NrfClientCert       string            `yaml:"nrfClientCert,omitempty" valid:"optional"`
+	NrfClientKey        string            `yaml:"nrfClientKey,omitempty" valid:"optional"`
+	NrfCaCert           string            `yaml:"nrfCaCert,omitempty" valid:"optional"`
 	Mongodb             *Mongodb          `yaml:"mongodb" valid:"required"`
 	VolumeLimit         int32             `yaml:"volumeLimit,omitempty" valid:"optional"`
 	VolumeLimitPDU      int32             `yaml:"volumeLimitPDU,omitempty" valid:"optional"`
@@ -141,6 +145,7 @@ type Sbi struct {
 	Port         int    `yaml:"port,omitempty" valid:"required,port"`
 	Fqdn         string `yaml:"fqdn,omitempty" valid:"required"`
 	Tls          *Tls   `yaml:"tls,omitempty" valid:"optional"`
+	Mutaltls     bool   `yaml:"mutalTls,omitempty" valid:"type(bool)"`
 }
 
 func (s *Sbi) validate() (bool, error) {
@@ -159,8 +164,9 @@ func (s *Sbi) validate() (bool, error) {
 }
 
 type Tls struct {
-	Pem string `yaml:"pem,omitempty" valid:"type(string),minstringlength(1),required"`
-	Key string `yaml:"key,omitempty" valid:"type(string),minstringlength(1),required"`
+	Pem    string `yaml:"pem,omitempty" valid:"type(string),minstringlength(1),required"`
+	Key    string `yaml:"key,omitempty" valid:"type(string),minstringlength(1),required"`
+	CaCert string `yaml:"cacert,omitempty" valid:"type(string),minstringlength(1)"`
 }
 
 func (t *Tls) validate() (bool, error) {
@@ -324,6 +330,33 @@ func (c *Config) GetSbiScheme() string {
 	return ChfSbiDefaultScheme
 }
 
+func (c *Config) GetSbiMutalTls() bool {
+	c.RLock()
+	defer c.RUnlock()
+	if c.Configuration != nil && c.Configuration.Sbi != nil && c.Configuration.Sbi.Mutaltls {
+		return c.Configuration.Sbi.Mutaltls
+	}
+	return false
+}
+
+func (c *Config) GetSbiCaCertPath() string {
+	c.RLock()
+	defer c.RUnlock()
+	if c.Configuration != nil && c.Configuration.Sbi != nil && c.Configuration.Sbi.Tls.CaCert != "" {
+		return c.Configuration.Sbi.Tls.CaCert
+	}
+	return ""
+}
+
+// func (c *Config) GetNrfMutalTls() bool {
+// 	c.RLock()
+// 	defer c.RUnlock()
+// 	if c.Configuration != nil && c.Configuration.NrfMutaltls {
+// 		return c.Configuration.NrfMutaltls
+// 	}
+// 	return false
+// }
+
 func (c *Config) GetCertPemPath() string {
 	c.RLock()
 	defer c.RUnlock()
@@ -335,6 +368,24 @@ func (c *Config) GetCertKeyPath() string {
 	defer c.RUnlock()
 	return c.Configuration.Sbi.Tls.Key
 }
+
+// func (c *Config) GetNrfClientCert() string {
+// 	c.RLock()
+// 	defer c.RUnlock()
+// 	return c.Configuration.NrfClientCert
+// }
+
+// func (c *Config) GetnrfClientKey() string {
+// 	c.RLock()
+// 	defer c.RUnlock()
+// 	return c.Configuration.NrfClientKey
+// }
+
+// func (c *Config) GetnrfCaCert() string {
+// 	c.RLock()
+// 	defer c.RUnlock()
+// 	return c.Configuration.NrfCaCert
+// }
 
 type PlmnSupportItem struct {
 	PlmnId     *models.PlmnId     `yaml:"plmnId" valid:"required"`

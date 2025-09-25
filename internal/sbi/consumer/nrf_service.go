@@ -44,6 +44,28 @@ func (s *nnrfService) getNFManagementClient(uri string) *Nnrf_NFManagement.APICl
 
 	configuration := Nnrf_NFManagement.NewConfiguration()
 	configuration.SetBasePath(uri)
+	// cfg := s.consumer.Config()
+	chfCtx := s.consumer.Context()
+	if chfCtx.NrfMutalTls {
+		logger.ConsumerLog.Debugf("NRF mTLS enabled, building mTLS http client")
+		logger.ConsumerLog.Debugf("NrfClientCert: %v", chfCtx.NrfClientCert)
+		logger.ConsumerLog.Debugf("NrfClientKey: %v", chfCtx.NrfClientKey)
+		logger.ConsumerLog.Debugf("NrfCaCert: %v", chfCtx.NrfCaCert)
+		// Build mTLS http client
+		httpClient, err := NewMTLSHTTPClientFromFiles(ClientTLSConfig{
+			ClientCertFile:  chfCtx.NrfClientCert,
+			ClientKeyFile:   chfCtx.NrfClientKey,
+			RootCAFiles:     []string{chfCtx.NrfCaCert}, //Used to verify server's certificate
+			ServerName:      "10.0.20.15",               // optional
+			MinVersionTLS13: false,                      // set true if you want to require TLS 1.3
+			Timeout:         30 * time.Second,
+		})
+		if err != nil {
+			logger.ConsumerLog.Errorf("failed to build mTLS http client for NRF: %v", err)
+		} else {
+			configuration.SetHTTPClient(httpClient)
+		}
+	}
 	client = Nnrf_NFManagement.NewAPIClient(configuration)
 
 	s.nfMngmntMu.RUnlock()
@@ -154,6 +176,9 @@ func (s *nnrfService) RegisterNFInstance(ctx context.Context) (
 			time.Sleep(2 * time.Second)
 			continue
 		}
+		logger.ConsumerLog.Infof("CHF register to NRF Success[%s]", chfContext.NrfUri)
+		logger.ConsumerLog.Debugf("CHF register to NRF Success[%s]", chfContext.NrfUri)
+		logger.ConsumerLog.Debugf("RegisterNFInstance Response: %+v", res)
 		nf = res.NrfNfManagementNfProfile
 		if nf.NfInstanceId == "" {
 			chfContext.HeartBeatTimer = 60
@@ -210,6 +235,41 @@ func (s *nnrfService) PatchNFupdate(ctx context.Context, wg *sync.WaitGroup) {
 	}
 	perCallTimeout := time.Duration(timeoutSec) * time.Second
 	lastSuccess := time.Time{}
+
+	// Initial patch right after registration
+	{
+		cctx, cancel := context.WithTimeout(ctx, perCallTimeout)
+		err := s.PatchNFInstance(cctx)
+		cancel()
+
+		if err == nil {
+			lastSuccess = time.Now()
+		} else {
+			// Try to read HTTP status code
+			status := 0
+			var apiErr openapi.GenericOpenAPIError
+			if errors.As(err, &apiErr) {
+				status = apiErr.ErrorStatus
+			}
+
+			switch status {
+			case 404, 410:
+				logger.ConsumerLog.Warn("NF instance not found at NRF; re-registering")
+				if _, nfID, rerr := s.RegisterNFInstance(ctx); rerr != nil {
+					logger.ConsumerLog.Errorf("re-registration failed: %v", rerr)
+				} else if nfID != "" {
+					// if base != "" {
+					// 	chfContext.NrfUri = base
+					// }
+					chfContext.NfId = nfID
+					lastSuccess = time.Now()
+				}
+			default:
+				logger.ConsumerLog.Errorf("initial PATCH failed: %v", err)
+			}
+		}
+	}
+
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()
 
@@ -237,12 +297,12 @@ func (s *nnrfService) PatchNFupdate(ctx context.Context, wg *sync.WaitGroup) {
 			switch status {
 			case 404, 410:
 				logger.ConsumerLog.Warn("NF Instance Missing at NRF Re-registering")
-				if base, nfID, rerr := s.RegisterNFInstance(ctx); rerr != nil {
+				if _, nfID, rerr := s.RegisterNFInstance(ctx); rerr != nil {
 					logger.ConsumerLog.Errorf("Re-registration failed: %v", rerr)
 				} else if nfID != "" {
-					if base != "" {
-						chfContext.NrfUri = base
-					}
+					// if base != "" {
+					// 	chfContext.NrfUri = base
+					// }
 					chfContext.NfId = nfID
 					lastSuccess = time.Now()
 				}
@@ -253,12 +313,12 @@ func (s *nnrfService) PatchNFupdate(ctx context.Context, wg *sync.WaitGroup) {
 				// If likely missed the window, re-register
 				if !lastSuccess.IsZero() && time.Since(lastSuccess) > time.Duration(heartbeat)*time.Second {
 					logger.ConsumerLog.Warn("Missed HeartBeat window Re-registering")
-					if base, nfID, rerr := s.RegisterNFInstance(ctx); rerr != nil {
+					if _, nfID, rerr := s.RegisterNFInstance(ctx); rerr != nil {
 						logger.ConsumerLog.Errorf("Re-registration failed: %v", rerr)
 					} else if nfID != "" {
-						if base != "" {
-							chfContext.NrfUri = base
-						}
+						// if base != "" {
+						// 	chfContext.NrfUri = base
+						// }
 						chfContext.NfId = nfID
 						lastSuccess = time.Now()
 					}

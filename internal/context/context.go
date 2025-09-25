@@ -40,6 +40,10 @@ type CHFContext struct {
 	LocalRecordSequenceNumber uint64
 	NrfUri                    string
 	NrfCertPem                string
+	NrfMutalTls               bool
+	NrfClientCert             string
+	NrfClientKey              string
+	NrfCaCert                 string
 	UePool                    sync.Map
 	OAuth2Required            bool
 	HeartBeatTimer            int32
