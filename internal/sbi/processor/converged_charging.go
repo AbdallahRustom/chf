@@ -263,7 +263,7 @@ func (p *Processor) ChargingDataCreate(
 
 		startTimeStamp = time.Now()
 
-		dumpErr := dumpCdrToCSV(ueId, []*cdrType.CHFRecord{cdr}, CDRCreate, startTimeStamp)
+		dumpErr := dumpCdrToCSV([]*cdrType.CHFRecord{cdr}, CDRCreate, startTimeStamp)
 		if dumpErr != nil {
 			problemDetails := &models.ProblemDetails{
 				Status: http.StatusBadRequest,
@@ -385,7 +385,7 @@ func (p *Processor) ChargingDataUpdate(
 			return nil, problemDetails
 		}
 
-		err = dumpCdrToCSV(ueId, []*cdrType.CHFRecord{cdr}, CDRUpdate, time.Time{})
+		err = dumpCdrToCSV([]*cdrType.CHFRecord{cdr}, CDRUpdate, time.Time{})
 		if err != nil {
 			problemDetails := &models.ProblemDetails{
 				Status: http.StatusBadRequest,
@@ -409,7 +409,7 @@ func (p *Processor) ChargingDataUpdate(
 		return nil, problemDetails
 	}
 
-	err = dumpCdrToCSV(ueId, []*cdrType.CHFRecord{cdr}, CDRUpdate, time.Time{})
+	err = dumpCdrToCSV([]*cdrType.CHFRecord{cdr}, CDRUpdate, time.Time{})
 	if err != nil {
 		problemDetails := &models.ProblemDetails{
 			Status: http.StatusBadRequest,
@@ -477,7 +477,7 @@ func (p *Processor) ChargingDataRelease(
 
 	stopTimeStamp := *chargingData.PDUSessionChargingInformation.PduSessionInformation.StopTime
 
-	err = dumpCdrToCSV(ueId, []*cdrType.CHFRecord{cdr}, CDRRelease, stopTimeStamp)
+	err = dumpCdrToCSV([]*cdrType.CHFRecord{cdr}, CDRRelease, stopTimeStamp)
 	if err != nil {
 		problemDetails := &models.ProblemDetails{
 			Status: http.StatusBadRequest,
