@@ -42,6 +42,7 @@ import (
 const chargingDatasColl = "policyData.ues.chargingData"
 
 func OpenServer(ctx context.Context, wg *sync.WaitGroup) {
+	logger.RatingLog.Infof("Open Rating Function Server")
 	// Load our custom dictionary on top of the default one, which
 	// always have the Base Protocol (RFC6733) and Credit Control
 	// Application (RFC4006).
