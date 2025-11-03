@@ -80,7 +80,7 @@ func OpenServer(ctx context.Context, wg *sync.WaitGroup) {
 	}()
 	rfDiameter := factory.ChfConfig.Configuration.RfDiameter
 	addr := rfDiameter.HostIPv4 + ":" + strconv.Itoa(rfDiameter.Port)
-	if len (rfDiameter.Tls.Pem) == 0 && len (rfDiameter.Tls.Key) == 0 {
+	if rfDiameter.Tls == nil || len(rfDiameter.Tls.Pem) == 0 && len(rfDiameter.Tls.Key) == 0 {
 		go func() {
 			errListen := diam.ListenAndServe(addr, mux, nil)
 			if err != nil {

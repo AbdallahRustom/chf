@@ -164,8 +164,8 @@ func (s *Sbi) validate() (bool, error) {
 }
 
 type Tls struct {
-	Pem    string `yaml:"pem,omitempty" valid:"type(string),minstringlength(1),required"`
-	Key    string `yaml:"key,omitempty" valid:"type(string),minstringlength(1),required"`
+	Pem    string `yaml:"pem,omitempty" valid:"type(string),minstringlength(1),optional"`
+	Key    string `yaml:"key,omitempty" valid:"type(string),minstringlength(1),optional"`
 	CaCert string `yaml:"cacert,omitempty" valid:"type(string),minstringlength(1)"`
 }
 
