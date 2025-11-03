@@ -80,12 +80,21 @@ func OpenServer(ctx context.Context, wg *sync.WaitGroup) {
 	}()
 	abmfDiameter := factory.ChfConfig.Configuration.AbmfDiameter
 	addr := abmfDiameter.HostIPv4 + ":" + strconv.Itoa(abmfDiameter.Port)
-	go func() {
-		errListen := diam.ListenAndServeTLS(addr, abmfDiameter.Tls.Pem, abmfDiameter.Tls.Key, mux, nil)
-		if errListen != nil {
-			logger.AcctLog.Errorf("ABMF server fail to listen: %V", errListen)
-		}
-	}()
+	if len(abmfDiameter.Tls.Key) == 0 && len(abmfDiameter.Tls.Pem) == 0 {
+		go func() {
+			errListen := diam.ListenAndServe(addr, mux, nil)
+			if errListen != nil {
+				logger.AcctLog.Errorf("ABMF server fail to listen on HTTP: %V", errListen)
+			}
+		}()
+	} else {
+		go func() {
+			errListen := diam.ListenAndServeTLS(addr, abmfDiameter.Tls.Pem, abmfDiameter.Tls.Key, mux, nil)
+			if errListen != nil {
+				logger.AcctLog.Errorf("ABMF server fail to listen: %V", errListen)
+			}
+		}()
+	}
 }
 
 func printErrors(ec <-chan *diam.ErrorReport) {
