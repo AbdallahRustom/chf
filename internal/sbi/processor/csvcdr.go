@@ -45,8 +45,9 @@ type UsedUnitContainerDetails struct {
 // Initialize the rotating writer once
 func getCDRWriter() (*RotatingCSVWriter, error) {
 	cdrWriterOnce.Do(func() {
-		// Directory and prefix (per-pod)
-		baseDir := getenv("CDR_DIR", "/data/cdr/incoming")
+		// Base dir containing current/, archive/, export/
+		baseDir := getenv("CDR_BASE_DIR", "/data/cdr")
+
 		host := "unknown"
 		if h, err := os.Hostname(); err == nil && h != "" {
 			host = h
@@ -90,13 +91,17 @@ func getCDRWriter() (*RotatingCSVWriter, error) {
 			"DownlinkVolume",
 		}
 		prefix := "cdr-" + host
+
 		cdrWriter, cdrWriterErr = NewRotatingCSVWriter(
 			baseDir,
 			prefix,
-			5*1024*1024,   // 5 MB
-			5*time.Minute, // 5 minutes
+			10_000_000,    // 10 MB
+			5*time.Minute, // at least one file every 5 minutes
 			header,
 		)
+		if cdrWriterErr == nil {
+			cdrWriter.StartBackground()
+		}
 	})
 	return cdrWriter, cdrWriterErr
 }
